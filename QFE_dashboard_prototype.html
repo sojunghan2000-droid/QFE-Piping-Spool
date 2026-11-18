@@ -37,7 +37,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 #printHead{display:none}
 @media screen and (max-width:1150px){.compact-grid{grid-template-columns:repeat(3,1fr)}.top{position:static;align-items:flex-start;flex-direction:column}.actions{justify-content:flex-start}}
 @media screen and (max-width:760px){.shell{display:block}.side{padding:12px}.side-note,.side-progress{display:none}.nav{display:inline-block;width:auto}.content{padding:14px 16px}.compact-grid,.reject-summary{grid-template-columns:repeat(2,1fr)}.rule{grid-template-columns:1fr}.pop{top:12px;right:16px;max-height:calc(100vh - 24px)}}
-@media print{@page{size:A4 landscape;margin:9mm}body{background:#fff;font-size:11px}.side,.top,.pop,.drop,#tip,.reject-body,.board-head button,.chip,.chart-tools,.seg{display:none!important}.shell{display:block}.content{padding:0;max-width:none}.section{display:block!important}#progress{break-before:page}#stageBanner{position:static}body.stage{padding-top:0}.board{break-inside:avoid}#printHead{display:block;border-bottom:2px solid var(--navy);padding-bottom:5px;margin-bottom:10px;font-weight:700}.matrix,.heat{min-width:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media print{@page{size:A4 landscape;margin:9mm}body{background:#fff;font-size:11px}.side,.top,.pop,.drop,#tip,.reject-body,.board-head button,.chip,.chart-tools,.seg{display:none!important}.shell{display:block}.content{padding:0;max-width:none}.section{display:block!important}#progress{break-before:page}#stageBanner{position:static!important}body.stage{padding-top:0!important}.board{break-inside:avoid}#printHead{display:block;border-bottom:2px solid var(--navy);padding-bottom:5px;margin-bottom:10px;font-weight:700}.matrix,.heat{min-width:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .auth-view{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
 #loginView[hidden],#pwView[hidden],#errView[hidden],#app[hidden]{display:none}
 .auth-card{width:100%;max-width:380px;background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--navy);padding:26px 26px 22px}
@@ -270,8 +270,8 @@ function saveShared(patch,gen){let run=sharedChain.then(async()=>{
  seenAt=r[0].updated_at||seenAt;return r[0]});sharedChain=run.catch(()=>{});return run}
 async function readShared(){let r=await api('/rest/v1/shared_settings?select=plan,rules,updated_at,updated_by&id=eq.1');return Array.isArray(r)&&r[0]||null}
 /* 충돌 시 서버의 최신 Plan을 불러와 화면에 반영한다 */
-/* 게시 중 규칙 저장: 다른 사용자가 Plan을 먼저 바꿔 0행이 되면 최신 updated_at 을 다시 읽어 한 번만 재시도한다(rules 만 저장) */
-async function saveRulesRetry(rules){try{return await saveShared({rules})}catch(e){if(!(e&&e.conflict))throw e;await sharedChain;let st=await readShared();if(st)seenAt=st.updated_at||null;return saveShared({rules})}}
+/* 게시 중 규칙 저장: 다른 사용자가 Plan을 먼저 바꿔 0행이 되면 최신 Plan과 updated_at 을 함께 불러온 뒤(pullShared) 한 번만 재시도한다(rules 만 저장) */
+async function saveRulesRetry(rules){try{return await saveShared({rules})}catch(e){if(!(e&&e.conflict))throw e;await sharedChain;await pullShared();return saveShared({rules})}}
 async function pullShared(){sharedGen++;let st=await readShared();if(!st)return;seenAt=st.updated_at||null;prefs.plan=cleanPlan(st.plan);confirmedPlan=JSON.parse(JSON.stringify(prefs.plan));renderPlanTable();renderAll()}
 /* 대기 중인 공용 설정 저장이 모두 끝날 때까지 기다린다 */
 async function settleShared(){for(;;){let c=sharedChain;await c;if(c===sharedChain)return}}
