@@ -1,0 +1,5 @@
+# Allowlist: everything is ignored unless listed below.
+# Project data (WJCS workbooks), photos and backups must never be committed.
+*
+!.gitignore
+!QFE_dashboard_prototype.html
