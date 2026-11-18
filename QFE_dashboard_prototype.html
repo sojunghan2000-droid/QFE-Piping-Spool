@@ -78,7 +78,7 @@ body.stage{padding-top:24px}body.stage .top{top:24px}body.stage .pop{top:86px}bo
 <div class="actions"><label class="top-date">Cut off date <input id="cutoff" type="date"></label>
 <button class="btn bell" id="bellBtn" type="button" aria-label="알림" aria-haspopup="dialog" aria-expanded="false">🔔<span class="bell-badge" id="bellBadge" hidden></span></button>
 <div class="seg" id="shopSeg" role="group" aria-label="Shop / Field" hidden><button type="button" data-shop="ALL">전체</button><button type="button" data-shop="S">Shop</button><button type="button" data-shop="F">Field</button></div>
-<button class="btn" id="printBtn" type="button">인쇄 / PDF</button><button class="btn primary" id="uploadBtn" type="button">WJCS 업로드</button><span class="data-badge" id="dataBadge" role="status">데이터 없음</span>
+<button class="btn" id="printBtn" type="button">인쇄 / PDF</button><button class="btn primary" id="uploadBtn" type="button">WJCS 업로드</button><span class="data-badge" id="dataBadge" role="status">데이터 없음</span><button class="btn primary" id="publishBtn" type="button" hidden>공유 게시</button><button class="btn" id="cancelPreviewBtn" type="button" hidden>미리보기 취소</button>
 <button class="btn" id="settingsBtn" type="button" aria-haspopup="dialog" aria-expanded="false">⚙ 집계 기준</button>
 <input class="sr" id="excelFile" type="file" accept=".xlsb,.xlsx,.xlsm" aria-label="WJCS 엑셀 파일" tabindex="-1"></div></header>
 <div class="content"><div id="printHead"></div>
@@ -103,6 +103,7 @@ body.stage{padding-top:24px}body.stage .top{top:24px}body.stage .pop{top:86px}bo
 <details><summary>모수 검증</summary><div class="fold" id="validation"></div></details>
 <details><summary>임시 옵션</summary><div class="fold"><label class="opt-row"><input type="checkbox" id="tempEntry"> Welding 실적일이 비어 있을 때만 Date of Entry (DEBAJ)를 실적일로 사용</label><p class="help">켜면 🔔 알림에 경고가 표시됩니다.</p></div></details>
 <details><summary>Welding Plan 입력</summary><div class="fold"><p class="help">월, CS, SS, AS 순서의 Dia-inch를 붙여넣으세요. 탭·공백·쉼표·세미콜론으로 구분할 수 있습니다. 예: 2026-11 100 80 20</p><textarea id="planPaste" aria-label="Plan 붙여넣기" placeholder="2026-11	100	80	20"></textarea><div class="opt-row"><button class="btn primary" id="planApply" type="button">적용</button><button class="btn" id="planAdd" type="button">월 추가</button><button class="btn" id="planClear" type="button">모두 지우기</button></div><div class="status" id="planStatus" role="status"></div><div class="tablewrap" id="planTable"></div></div></details>
+<details id="adminBox" hidden><summary>게시 관리 (관리자)</summary><div class="fold"><div class="opt-row"><button class="btn" id="deleteLatestBtn" type="button">최신 게시본 삭제</button></div><div class="status" id="pubStatus" role="status"></div><p class="help">잘못 게시했을 때 최신 게시본을 삭제하면 직전 게시본이 다시 표시됩니다.</p></div></details>
 <details><summary>화면 설정</summary><div class="fold"><div class="opt-row"><button class="btn" id="prefExport" type="button">설정 내보내기</button><button class="btn" id="prefImport" type="button">설정 불러오기</button><button class="btn" id="prefReset" type="button">초기화</button><input class="sr" id="prefFile" type="file" accept=".json,application/json" aria-label="설정 JSON 파일" tabindex="-1"></div><div class="status" id="prefStatus" role="status"></div><p class="help">탭, Shop/Field, 자재, 선택 공정, 차트 설정을 이 브라우저에 저장합니다. Plan, 열 선택, 임시 옵션은 공용 설정이며 이 브라우저에 저장하지 않습니다. 파일 내용과 Cut off date도 저장하지 않으며, 초기화해도 공용 설정은 유지됩니다.</p></div></details>
 </div></div>
 <div class="pub-notice" id="newNotice" role="status" hidden><span>새 데이터가 게시되었습니다</span><button class="btn primary" id="newReload" type="button">새로고침</button><button class="pop-close" id="newClose" type="button" aria-label="알림 닫기">×</button></div>
@@ -197,7 +198,7 @@ const canPublish=()=>!!me&&me.active===true&&(me.role==='uploader'||me.role==='a
 const stampOrDash=t=>{if(!t)return'–';let d=new Date(t);return Number.isNaN(d.getTime())?'–':stamp(t)};
 function renderChrome(){let c=cut(),{prev,cur}=weeks(),empty=viewMode==='empty',prevw=viewMode==='preview',cp=canPublish();$('dateCaption').textContent=`Cut off ${c} · This week ${md(cur)} ~ ${md(c)} · Last week ${md(prev)} ~ ${md(addDays(cur,-1))}`;qa('.nav').forEach(b=>{let on=b.dataset.tab===prefs.tab;b.classList.toggle('active',on);b.setAttribute('aria-current',on?'page':'false')});qa('.section').forEach(s=>s.classList.toggle('active',s.id===prefs.tab));$('pageTitle').textContent=prefs.tab==='progress'?'Progress Chart':'Overview';$('shopSeg').hidden=empty;qa('#shopSeg button').forEach(b=>b.classList.toggle('on',b.dataset.shop===prefs.shop));qa('#pmSeg button').forEach(b=>b.classList.toggle('on',b.dataset.pm===prefs.pm));
 let label=prevw?'게시 전 미리보기':empty?'데이터 없음':'게시 데이터',badge=$('dataBadge');if(!badge.classList.contains('busy')){badge.textContent=label;badge.classList.toggle('real',viewMode==='published');badge.classList.toggle('prev',prevw)}
-$('app').classList.toggle('nodata',empty);$('emptyPanel').hidden=!empty||dataErr;$('errPanel').hidden=!(empty&&dataErr);$('uploadBtn').hidden=!cp;$('settingsBtn').hidden=!cp;$('excelFile').disabled=!cp;if(!cp)setPop('settingsPop',false);
+$('app').classList.toggle('nodata',empty);$('emptyPanel').hidden=!empty||dataErr;$('errPanel').hidden=!(empty&&dataErr);$('uploadBtn').hidden=!cp;$('settingsBtn').hidden=!cp;$('excelFile').disabled=!cp;$('publishBtn').hidden=!(prevw&&cp);$('cancelPreviewBtn').hidden=!(prevw&&cp);$('adminBox').hidden=!(isAdmin()&&!!pub&&!prevw);if(!cp)setPop('settingsPop',false);
 let who=me?`${me.display_name||me.email||''}${me.company?` · ${me.company}`:''}`:'';$('userName').textContent=who;
 let lines=[];if(prevw)lines.push(esc(D.file.name),`WJCS ${D.w.rows.length.toLocaleString()}행 · SPOOL ${D.s?D.s.rows.length.toLocaleString():0}행`,`파일 수정 ${esc(stamp(D.file.modified))}`,`업로드 ${esc(stamp(D.file.uploaded))}`,'<b>게시 전 미리보기</b> · 아직 공유되지 않았습니다');else if(pub)lines.push(esc(pub.file_name||'(파일명 없음)'),`게시자 ${esc(pub.publisher_name||'–')}`,`게시 ${esc(stampOrDash(pub.published_at))}`,`WJCS ${(+pub.wjcs_rows||0).toLocaleString()}행 · SPOOL ${(+pub.spool_rows||0).toLocaleString()}행`,`파일 수정 ${esc(stampOrDash(pub.file_modified))}`);else lines.push('게시된 데이터 없음');lines.push('',esc(NOTICE_TXT));$('sideNote').innerHTML=lines.join('<br>');
 let head=`QFE Piping Spool Dashboard · Cut off ${c} · ${label}`;if(prevw)head+=` · ${D.file.name} (${stamp(D.file.uploaded)})`;else if(pub)head+=` · ${pub.file_name||''} (게시 ${stampOrDash(pub.published_at)})`;$('printHead').textContent=head+' · ver.261118'}
@@ -246,8 +247,45 @@ function changed(){savePrefs();renderAll()}
 function setSelected(p){selected=p;prefs.selected=p;let v=p||'WELDING';prefs.charts.s.p=v;prefs.charts.b.p=v;changed()}
 
 /* ===== 업로드 ===== */
-async function handleFile(file){if(!file||!authed()||!canPublish())return;let badge=$('dataBadge');badge.classList.remove('real');badge.classList.add('busy');badge.textContent='읽는 중...';try{let wb=await readWorkbook(file);if(!wb.WJCS)throw Error('WJCS 시트가 없습니다.');D={file:{name:file.name,modified:file.lastModified,uploaded:Date.now()},w:sheetTable(wb.WJCS,'w'),s:wb.SPOOL?sheetTable(wb.SPOOL,'s'):null};rf={state:'ALL',m:'ALL',area:'ALL',q:''};$('rfState').value='ALL';$('rfMat').value='ALL';$('rfQ').value='';baseVals={};viewMode='preview';badge.classList.remove('busy');aggregate();renderRuleLists();renderAll()}catch(err){badge.classList.remove('busy');renderChrome();alert('업로드 실패: '+err.message)}}
+let publishing=false,sharedChain=Promise.resolve();
+async function handleFile(file){if(!file||!authed()||!canPublish()||publishing)return;let badge=$('dataBadge');badge.classList.remove('real');badge.classList.add('busy');badge.textContent='읽는 중...';try{let wb=await readWorkbook(file);if(!wb.WJCS)throw Error('WJCS 시트가 없습니다.');D={file:{name:file.name,modified:file.lastModified,uploaded:Date.now()},w:sheetTable(wb.WJCS,'w'),s:wb.SPOOL?sheetTable(wb.SPOOL,'s'):null};rf={state:'ALL',m:'ALL',area:'ALL',q:''};$('rfState').value='ALL';$('rfMat').value='ALL';$('rfQ').value='';baseVals={};viewMode='preview';badge.classList.remove('busy');aggregate();renderRuleLists();renderAll()}catch(err){badge.classList.remove('busy');renderChrome();alert('업로드 실패: '+err.message)}}
 
+/* ===== 게시 · 공용 설정 저장 ===== */
+const SIZE_MSG='게시 크기가 5MB를 초과하여 게시할 수 없습니다';
+function errReason(e){let st=e&&e.status;return st===401||st===403?'권한이 없거나 로그인이 만료되었습니다':!st?'서버에 연결하지 못했습니다':'서버 오류가 발생했습니다'}
+function setBusy(b){publishing=b;['publishBtn','cancelPreviewBtn','deleteLatestBtn'].forEach(id=>$(id).disabled=b)}
+/* 공용 설정 쓰기는 한 줄로 직렬화한다: 먼저 시작한 저장이 늦게 끝나 나중 값을 덮어쓰지 못한다 */
+function saveShared(patch){let run=sharedChain.then(()=>api('/rest/v1/shared_settings?id=eq.1',{method:'PATCH',headers:{Prefer:'return=minimal'},body:patch}));sharedChain=run.catch(()=>{});return run}
+async function reloadShared(){try{let r=await api('/rest/v1/shared_settings?select=plan&id=eq.1'),st=Array.isArray(r)&&r[0];if(!st)return;prefs.plan=cleanPlan(st.plan);renderPlanTable();renderAll()}catch{}}
+function persistPlan(){if(!canPublish())return;saveShared({plan:JSON.parse(JSON.stringify(prefs.plan))}).catch(e=>{planMsg(`Plan을 저장하지 못했습니다 (${errReason(e)}). 저장된 값으로 되돌립니다.`,false);sharedChain=sharedChain.then(reloadShared)})}
+async function refreshCurrent(){let cur=await loadCurrent();applyCurrent(cur);noticedId=NO_NOTICE;$('newNotice').hidden=true;renderRuleLists();renderPlanTable();renderAll()}
+async function publishSnapshot(){
+ if(publishing||viewMode!=='preview'||!D||!canPublish())return;
+ let payload=toPayload(AG);if(payloadBytes(payload)>MAX_PAYLOAD){alert(SIZE_MSG);return}
+ let wr=D.w.rows.length,sr=D.s?D.s.rows.length:0;
+ if(!confirm(`공유 게시\n\n파일: ${D.file.name}\nWJCS ${wr.toLocaleString()}행 · SPOOL ${sr.toLocaleString()}행\n\n게시하면 모든 사용자에게 이 집계 결과가 표시됩니다. 게시할까요?`))return;
+ let t=new Date(D.file.modified),rules={sel:prefs.sel,temp:prefs.temp};
+ setBusy(true);
+ try{
+  try{await api('/rest/v1/snapshots',{method:'POST',headers:{Prefer:'return=minimal'},body:{file_name:D.file.name,file_modified:Number.isNaN(t.getTime())?null:t.toISOString(),wjcs_rows:wr,spool_rows:sr,payload}})}
+  catch(e){if(!session)return;alert(`게시하지 못했습니다 (${errReason(e)}). 미리보기는 그대로 유지됩니다. 잠시 후 다시 시도해 주세요.`);return}
+  let rulesOk=true;try{await saveShared({rules})}catch{rulesOk=false}
+  try{await refreshCurrent()}catch{alert('게시는 완료되었지만 최신 데이터를 불러오지 못했습니다. 화면을 새로고침합니다.');reloadPage();return}
+  if(!rulesOk)alert('데이터는 게시되었지만 집계 기준(열 선택·임시 옵션) 저장에 실패했습니다. ⚙ 집계 기준을 확인해 주세요.')
+ }finally{setBusy(false)}}
+async function cancelPreview(){
+ if(publishing||viewMode!=='preview')return;setBusy(true);
+ try{try{await refreshCurrent()}catch(e){if(session)alert(`최신 게시본을 불러오지 못했습니다 (${errReason(e)}). 미리보기는 그대로 유지됩니다.`)}}finally{setBusy(false)}}
+async function deleteLatest(){
+ if(publishing||!isAdmin()||!pub||viewMode==='preview')return;
+ if(!confirm(`최신 게시본을 삭제할까요?\n\n파일: ${pub.file_name||'(파일명 없음)'}\n게시: ${stampOrDash(pub.published_at)}\n\n삭제하면 직전 게시본이 표시되며, 삭제한 게시본은 되돌릴 수 없습니다.`))return;
+ setBusy(true);
+ try{
+  let gone;try{gone=await api('/rest/v1/snapshots?id=eq.'+encodeURIComponent(pub.id),{method:'DELETE',headers:{Prefer:'return=representation'}})}catch(e){if(session)alert(`삭제하지 못했습니다 (${errReason(e)}).`);return}
+  if(!Array.isArray(gone)||!gone.length){alert('삭제할 게시본이 없거나 삭제 권한이 없습니다.');return}
+  try{await refreshCurrent();$('pubStatus').className='status ok';$('pubStatus').textContent='최신 게시본을 삭제했습니다.'}catch{alert('삭제는 완료되었지만 데이터를 다시 불러오지 못했습니다. 화면을 새로고침합니다.');reloadPage()}
+ }finally{setBusy(false)}}
+$('publishBtn').onclick=publishSnapshot;$('cancelPreviewBtn').onclick=cancelPreview;$('deleteLatestBtn').onclick=deleteLatest;
 
 /* ===== 이벤트 ===== */
 function setPop(id,open){$(id).hidden=!open;$(id==='bellPop'?'bellBtn':'settingsBtn').setAttribute('aria-expanded',String(open))}
@@ -269,11 +307,12 @@ $('ruleList').addEventListener('change',e=>{let s=e.target.closest('[data-sel]')
 $('validation').addEventListener('input',e=>{let i=e.target.closest('[data-base]');if(!i)return;baseVals[i.dataset.base]=i.value;$('br-'+PROCS.indexOf(i.dataset.base)).innerHTML=baseResult(i.dataset.base)});
 $('tempEntry').onchange=e=>{if(!D){e.target.checked=prefs.temp;return}prefs.temp=e.target.checked;savePrefs();recompute()};
 function planMsg(t,ok=true){$('planStatus').className='status '+(ok?'ok':'bad');$('planStatus').textContent=t}
-$('planApply').onclick=()=>{let{out,ignored}=parsePlanText($('planPaste').value),n=Object.keys(out).length;if(!n){planMsg(`적용할 행이 없습니다. ${ignored}줄 무시`,false);return}Object.assign(prefs.plan,out);planMsg(`${n}개월 적용 · ${ignored}줄 무시`);$('planPaste').value='';renderPlanTable();changed()};
-$('planAdd').onclick=()=>{let keys=Object.keys(prefs.plan).sort(),base=keys.length?keys[keys.length-1]:cut().slice(0,7),[y,m]=base.split('-').map(Number),next=keys.length?new Date(Date.UTC(y,m,1)).toISOString().slice(0,7):base;prefs.plan[next]={CS:0,SS:0,AS:0};renderPlanTable();changed()};
-$('planClear').onclick=()=>{if(!Object.keys(prefs.plan).length||!confirm('입력된 Plan을 모두 지울까요?'))return;prefs.plan={};planMsg('Plan을 모두 지웠습니다.');renderPlanTable();changed()};
-$('planTable').addEventListener('click',e=>{let b=e.target.closest('[data-plan-del]');if(!b)return;delete prefs.plan[b.dataset.planDel];renderPlanTable();changed()});
-$('planTable').addEventListener('change',e=>{let t=e.target;if(t.dataset.plan){prefs.plan[t.dataset.plan][t.dataset.mat]=Math.max(0,num(t.value));changed()}else if(t.dataset.planMonth){let old=t.dataset.planMonth,v=t.value.trim().replace(/[./]/g,'-');if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){planMsg('월은 YYYY-MM 형식으로 입력해 주세요.',false);t.value=old;return}if(v!==old){prefs.plan[v]=prefs.plan[old];delete prefs.plan[old]}renderPlanTable();changed()}});
+const planDirty=(table=false)=>{if(table)renderPlanTable();changed();persistPlan()};
+$('planApply').onclick=()=>{let{out,ignored}=parsePlanText($('planPaste').value),n=Object.keys(out).length;if(!n){planMsg(`적용할 행이 없습니다. ${ignored}줄 무시`,false);return}Object.assign(prefs.plan,out);planMsg(`${n}개월 적용 · ${ignored}줄 무시`);$('planPaste').value='';planDirty(true)};
+$('planAdd').onclick=()=>{let keys=Object.keys(prefs.plan).sort(),base=keys.length?keys[keys.length-1]:cut().slice(0,7),[y,m]=base.split('-').map(Number),next=keys.length?new Date(Date.UTC(y,m,1)).toISOString().slice(0,7):base;prefs.plan[next]={CS:0,SS:0,AS:0};planDirty(true)};
+$('planClear').onclick=()=>{if(!Object.keys(prefs.plan).length||!confirm('입력된 Plan을 모두 지울까요?'))return;prefs.plan={};planMsg('Plan을 모두 지웠습니다.');planDirty(true)};
+$('planTable').addEventListener('click',e=>{let b=e.target.closest('[data-plan-del]');if(!b)return;delete prefs.plan[b.dataset.planDel];planDirty(true)});
+$('planTable').addEventListener('change',e=>{let t=e.target;if(t.dataset.plan){prefs.plan[t.dataset.plan][t.dataset.mat]=Math.max(0,num(t.value));planDirty()}else if(t.dataset.planMonth){let old=t.dataset.planMonth,v=t.value.trim().replace(/[./]/g,'-');if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){planMsg('월은 YYYY-MM 형식으로 입력해 주세요.',false);t.value=old;return}if(v!==old){prefs.plan[v]=prefs.plan[old];delete prefs.plan[old]}planDirty(true)}});
 function prefMsg(t,ok=true){$('prefStatus').className='status '+(ok?'ok':'bad');$('prefStatus').textContent=t}
 function applyPrefs(){selected=prefs.selected;savePrefs();aggregate();renderRuleLists();renderPlanTable();renderAll()}
 $('prefExport').onclick=()=>{downloadBlob(`QFE_dashboard_settings_${today().replace(/-/g,'')}.json`,JSON.stringify(personalPrefs(),null,2),'application/json');prefMsg('설정을 내보냈습니다.')};$('prefImport').onclick=()=>$('prefFile').click();
@@ -349,7 +388,7 @@ function checkAG(ag){
  let audit=null,a=ag.audit;if(isObj(a)){let n=k=>Math.max(0,num(a[k]));audit={total:n('total'),deleted:n('deleted'),noMat:n('noMat'),target:n('target'),sizeNon:n('sizeNon'),spool:n('spool'),spoolNoMat:n('spoolNoMat'),nonNde:n('nonNde'),badPct:n('badPct'),badDate:n('badDate'),tempUsed:n('tempUsed'),conn:Object.fromEntries(Object.entries(isObj(a.conn)?a.conn:{}).map(([k,v])=>[k,num(v)])),shopDI:{S:num(a.shopDI&&a.shopDI.S),F:num(a.shopDI&&a.shopDI.F),'기타':num(a.shopDI&&a.shopDI['기타'])},missingHeads:Array.isArray(a.missingHeads)?a.missingHeads.map(String):[]}}
  return{P,rejects,maxReps:ag.maxReps,audit,areas:ag.areas.map(String),missing}}
 function applyCurrent(cur){
- let st=cur.settings||{},rules=st.rules&&typeof st.rules==='object'&&!Array.isArray(st.rules)&&st.rules.sel?st.rules:null,cp=cleanPrefs(rules?{sel:rules.sel,temp:rules.temp}:{});
+ let st=cur.settings||{},rules=st.rules&&typeof st.rules==='object'&&!Array.isArray(st.rules)?st.rules:{},cp=cleanPrefs({sel:rules.sel,temp:rules.temp});
  prefs.plan=cleanPlan(st.plan);prefs.sel=cp.sel;prefs.temp=cp.temp;
  D=null;pub=cur.snapshot||null;pubAG=null;dataErr=false;viewMode='empty';
  if(pub){try{pubAG=checkAG(fromPayload(pub.payload));viewMode='published'}catch{pubAG=null;dataErr=true}}
@@ -364,7 +403,7 @@ async function startApp(){
 function enterApp(){
  showView('app');started=true;renderRuleLists();renderPlanTable();renderAll()}
 /* 새 게시본 안내: 화면의 데이터는 바꾸지 않고 안내만 띄운다 */
-let latestSeen=null,noticedId=null;
+const NO_NOTICE=Symbol('none');let latestSeen=null,noticedId=NO_NOTICE;
 async function checkNewData(){
  let r;try{r=await api('/rest/v1/snapshots?select=id&'+SNAP_ORDER)}catch{return}
  if(!Array.isArray(r)||$('app').hidden)return;let latest=r[0]?r[0].id:null,shown=pub?pub.id:null;
@@ -400,7 +439,7 @@ addEventListener('focus',async()=>{
  try{await loadMe()}catch{return}
  if(!session||!me||!me.active){if(session)rejectInactive();return}
  checkNewData()});
-$('newReload').onclick=()=>reloadPage();$('newClose').onclick=()=>{$('newNotice').hidden=true;noticedId=latestSeen};
+$('newReload').onclick=()=>{if(viewMode==='preview'&&!confirm('게시 전 미리보기를 버리고 새로고침할까요?'))return;reloadPage()};$('newClose').onclick=()=>{$('newNotice').hidden=true;noticedId=latestSeen};
 
 /* ===== 시작 ===== */
 boot();
