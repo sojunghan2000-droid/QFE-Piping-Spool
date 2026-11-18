@@ -53,7 +53,11 @@ body.stage{padding-top:24px}body.stage .top{top:24px}body.stage .pop{top:86px}bo
 .nodata-panel{border:1px dashed #9fb3bf;background:#fff;color:var(--navy);padding:34px 20px;text-align:center;font-size:16px;font-weight:700;margin-bottom:16px}.nodata-panel.bad{border-color:var(--red);color:var(--red);font-size:14px}.nodata-panel[hidden]{display:none}.nodata-panel .btn{margin-left:10px}
 #app.nodata .section{display:none}
 .pub-notice{position:fixed;right:16px;bottom:16px;z-index:95;display:flex;align-items:center;gap:10px;background:#102738;color:#fff;border-radius:6px;padding:10px 12px;font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.35)}.pub-notice[hidden]{display:none}.pub-notice .pop-close{color:#fff}
-@media print{.pub-notice,.side-user,.nodata-panel .btn{display:none!important}}
+@media print{.pub-notice,.side-user,.nodata-panel .btn{display:none!important}#users,#pwModal{display:none!important}}
+#app.nodata #users.active{display:block}.nav[data-tab="users"]::before{content:"▤ \00a0"}
+.users-form{display:flex;gap:9px;flex-wrap:wrap;align-items:end;padding:12px}.users-form .field{min-width:150px;flex:1 1 150px}.users-msg{font-size:12px;margin:0 12px 10px;min-height:18px}
+.users-table{min-width:980px;table-layout:auto}.users-table td,.users-table th{vertical-align:middle}.users-table .btn{padding:4px 9px;font-size:12px;margin-right:4px}.users-table select{border:1px solid #bdcbd3;padding:4px;border-radius:3px;background:#fff;color:var(--ink)}.users-table .off td{color:var(--muted)}
+.pw-back{position:fixed;inset:0;z-index:120;background:rgba(16,39,56,.55);display:flex;align-items:center;justify-content:center;padding:16px}.pw-modal{width:min(460px,100%);background:#fff;border-top:4px solid var(--navy);padding:20px 22px;border-radius:4px;box-shadow:0 12px 32px rgba(21,44,62,.35)}.pw-modal h3{margin:0 0 8px;font-size:16px;color:var(--navy)}.pw-modal .pw-val{display:block;font-family:Consolas,monospace;font-size:18px;font-weight:700;background:#eef3f6;border:1px solid #bdcbd3;padding:10px;margin:10px 0;overflow-wrap:anywhere;user-select:all}.pw-modal .pw-note{color:var(--red);font-weight:700;font-size:13px;margin:6px 0}.pw-modal .opt-row{display:flex;gap:8px;margin-top:12px}
 </style></head>
 <body>
 <div id="stageBanner" role="note" hidden></div>
@@ -96,7 +100,8 @@ body.stage{padding-top:24px}body.stage .top{top:24px}body.stage .pop{top:86px}bo
 <section class="section" id="progress"><div class="intro"><h2>Progress Chart</h2><p>S-Curve(누적 %)와 구간별 실적</p></div>
 <div class="board"><div class="board-head">S-Curve <small>누적 진행률 %</small></div><div class="chart-tools" id="toolsS"></div><svg class="chart-svg" id="chartS" viewBox="0 0 900 300" role="img" aria-label="S-Curve 누적 진행률 차트"></svg><div class="chart-legend" id="legendS"></div></div>
 <div class="board"><div class="board-head">Bar <small>구간 증분</small></div><div class="chart-tools" id="toolsB"></div><svg class="chart-svg" id="chartB" viewBox="0 0 900 300" role="img" aria-label="구간별 실적 막대 차트"></svg><div class="chart-legend" id="legendB"></div></div>
-</section></div></main></div>
+</section>
+<section class="section" id="users" aria-label="사용자 관리"></section></div></main></div>
 <div class="pop small" id="bellPop" role="dialog" aria-label="알림" hidden><div class="pop-head"><span>🔔 알림</span><button class="pop-close" type="button" data-close="bellPop" aria-label="알림 닫기">×</button></div><div class="pop-body"><ul class="alert-list" id="alertList"></ul></div></div>
 <div class="pop" id="settingsPop" role="dialog" aria-label="집계 기준" hidden><div class="pop-head"><span>⚙ 집계 기준</span><button class="pop-close" type="button" data-close="settingsPop" aria-label="집계 기준 닫기">×</button></div><div class="pop-body">
 <details open><summary>공정별 집계 기준</summary><div class="fold"><p class="help" id="ruleHelp"></p><div id="ruleList"></div></div></details>
@@ -144,10 +149,10 @@ const tipAttr=(title,rows)=>`data-tip="${esc(JSON.stringify([title,rows]))}"`;
 const defChart=()=>({p:'WELDING',per:'weekly',m:'ALL'});
 function cleanPlan(x){let out={};if(x&&typeof x==='object')for(let[k,v]of Object.entries(x)){if(/^\d{4}-(0[1-9]|1[0-2])$/.test(k)&&v&&typeof v==='object')out[k]={CS:Math.max(0,num(v.CS)),SS:Math.max(0,num(v.SS)),AS:Math.max(0,num(v.AS))}}return out}
 function cleanChart(x){let c=x&&typeof x==='object'?x:{};return{p:PROCS.includes(c.p)?c.p:'WELDING',per:c.per==='monthly'?'monthly':'weekly',m:['ALL',...MATS].includes(c.m)?c.m:'ALL'}}
-function cleanPrefs(x){let p=x&&typeof x==='object'?x:{},sel={};for(let k of PROCS){let a=p.sel&&p.sel[k];sel[k]=Array.isArray(a)&&a.length<=30&&a.every(c=>Array.isArray(c)&&typeof c[0]==='string'&&c[0].length<=200&&Number.isInteger(c[1])&&c[1]>=0)?a.map(c=>[c[0],c[1]]):DEF_SEL[k].map(c=>[...c])}return{tab:p.tab==='progress'?'progress':'overview',shop:['ALL','S','F'].includes(p.shop)?p.shop:'ALL',pm:MATS.includes(p.pm)?p.pm:'CS',selected:PROCS.includes(p.selected)?p.selected:null,charts:{s:cleanChart(p.charts&&p.charts.s),b:cleanChart(p.charts&&p.charts.b)},sel,temp:p.temp===true,plan:cleanPlan(p.plan)}}
+function cleanPrefs(x){let p=x&&typeof x==='object'?x:{},sel={};for(let k of PROCS){let a=p.sel&&p.sel[k];sel[k]=Array.isArray(a)&&a.length<=30&&a.every(c=>Array.isArray(c)&&typeof c[0]==='string'&&c[0].length<=200&&Number.isInteger(c[1])&&c[1]>=0)?a.map(c=>[c[0],c[1]]):DEF_SEL[k].map(c=>[...c])}return{tab:p.tab==='progress'?'progress':p.tab==='users'?'users':'overview',shop:['ALL','S','F'].includes(p.shop)?p.shop:'ALL',pm:MATS.includes(p.pm)?p.pm:'CS',selected:PROCS.includes(p.selected)?p.selected:null,charts:{s:cleanChart(p.charts&&p.charts.s),b:cleanChart(p.charts&&p.charts.b)},sel,temp:p.temp===true,plan:cleanPlan(p.plan)}}
 let prefs=cleanPrefs();try{let saved=JSON.parse(localStorage.getItem('qfePrefs')||'null');if(saved&&saved.charts)prefs=cleanPrefs(saved)}catch{}
 /* 개인 화면 설정만 이 브라우저에 저장한다. plan·sel·temp는 공용 설정(서버)이다 */
-const personalPrefs=()=>({tab:prefs.tab,shop:prefs.shop,pm:prefs.pm,selected:prefs.selected,charts:prefs.charts}),sharedPrefs=()=>({plan:prefs.plan,sel:prefs.sel,temp:prefs.temp});
+const personalPrefs=()=>({tab:prefs.tab==='users'?'overview':prefs.tab,shop:prefs.shop,pm:prefs.pm,selected:prefs.selected,charts:prefs.charts}),sharedPrefs=()=>({plan:prefs.plan,sel:prefs.sel,temp:prefs.temp});
 function savePrefs(){try{localStorage.setItem('qfePrefs',JSON.stringify(personalPrefs()))}catch{}}
 
 /* ===== 엑셀 파서: 외부 라이브러리 없이 zip + xlsx(XML) / xlsb(BIFF12) ===== */
@@ -196,9 +201,9 @@ const chartPlan=p=>p!=='WELDING'?{}:prefs.plan;
 const NO_HEADERS='엑셀을 올리면 실적일 열을 선택할 수 있습니다',NOTICE_TXT='원본 파일은 서버에 저장되지 않으며, 게시하면 집계 결과만 공유됩니다';
 const canPublish=()=>!!me&&me.active===true&&(me.role==='uploader'||me.role==='admin'),isAdmin=()=>!!me&&me.active===true&&me.role==='admin';
 const stampOrDash=t=>{if(!t)return'–';let d=new Date(t);return Number.isNaN(d.getTime())?'–':stamp(t)};
-function renderChrome(){let c=cut(),{prev,cur}=weeks(),empty=viewMode==='empty',prevw=viewMode==='preview',cp=canPublish();$('dateCaption').textContent=`Cut off ${c} · This week ${md(cur)} ~ ${md(c)} · Last week ${md(prev)} ~ ${md(addDays(cur,-1))}`;qa('.nav').forEach(b=>{let on=b.dataset.tab===prefs.tab;b.classList.toggle('active',on);b.setAttribute('aria-current',on?'page':'false')});qa('.section').forEach(s=>s.classList.toggle('active',s.id===prefs.tab));$('pageTitle').textContent=prefs.tab==='progress'?'Progress Chart':'Overview';$('shopSeg').hidden=empty;qa('#shopSeg button').forEach(b=>b.classList.toggle('on',b.dataset.shop===prefs.shop));qa('#pmSeg button').forEach(b=>b.classList.toggle('on',b.dataset.pm===prefs.pm));
+function renderChrome(){syncUsersTab();let c=cut(),{prev,cur}=weeks(),empty=viewMode==='empty',prevw=viewMode==='preview',cp=canPublish();$('dateCaption').textContent=`Cut off ${c} · This week ${md(cur)} ~ ${md(c)} · Last week ${md(prev)} ~ ${md(addDays(cur,-1))}`;qa('.nav').forEach(b=>{let on=b.dataset.tab===prefs.tab;b.classList.toggle('active',on);b.setAttribute('aria-current',on?'page':'false')});qa('.section').forEach(s=>s.classList.toggle('active',s.id===prefs.tab));$('pageTitle').textContent=prefs.tab==='progress'?'Progress Chart':prefs.tab==='users'?'사용자 관리':'Overview';$('shopSeg').hidden=empty;qa('#shopSeg button').forEach(b=>b.classList.toggle('on',b.dataset.shop===prefs.shop));qa('#pmSeg button').forEach(b=>b.classList.toggle('on',b.dataset.pm===prefs.pm));
 let label=prevw?'게시 전 미리보기':empty?'데이터 없음':'게시 데이터',badge=$('dataBadge');if(!badge.classList.contains('busy')){badge.textContent=label;badge.classList.toggle('real',viewMode==='published');badge.classList.toggle('prev',prevw)}
-$('app').classList.toggle('nodata',empty);$('emptyPanel').hidden=!empty||dataErr;$('errPanel').hidden=!(empty&&dataErr);$('uploadBtn').hidden=!cp;$('settingsBtn').hidden=!cp;$('excelFile').disabled=!cp;$('publishBtn').hidden=!(prevw&&cp);$('cancelPreviewBtn').hidden=!(prevw&&cp);$('adminBox').hidden=!(isAdmin()&&!!pub&&!prevw);if(!cp)setPop('settingsPop',false);
+$('app').classList.toggle('nodata',empty);$('emptyPanel').hidden=!empty||dataErr||prefs.tab==='users';$('errPanel').hidden=!(empty&&dataErr)||prefs.tab==='users';$('uploadBtn').hidden=!cp;$('settingsBtn').hidden=!cp;$('excelFile').disabled=!cp;$('publishBtn').hidden=!(prevw&&cp);$('cancelPreviewBtn').hidden=!(prevw&&cp);$('adminBox').hidden=!(isAdmin()&&!!pub&&!prevw);if(!cp)setPop('settingsPop',false);
 let who=me?`${me.display_name||me.email||''}${me.company?` · ${me.company}`:''}`:'';$('userName').textContent=who;
 let lines=[];if(prevw)lines.push(esc(D.file.name),`WJCS ${D.w.rows.length.toLocaleString()}행 · SPOOL ${D.s?D.s.rows.length.toLocaleString():0}행`,`파일 수정 ${esc(stamp(D.file.modified))}`,`업로드 ${esc(stamp(D.file.uploaded))}`,'<b>게시 전 미리보기</b> · 아직 공유되지 않았습니다');else if(pub)lines.push(esc(pub.file_name||'(파일명 없음)'),`게시자 ${esc(pub.publisher_name||'–')}`,`게시 ${esc(stampOrDash(pub.published_at))}`,`WJCS ${(+pub.wjcs_rows||0).toLocaleString()}행 · SPOOL ${(+pub.spool_rows||0).toLocaleString()}행`,`파일 수정 ${esc(stampOrDash(pub.file_modified))}`);else lines.push('게시된 데이터 없음');lines.push('',esc(NOTICE_TXT));$('sideNote').innerHTML=lines.join('<br>');
 let head=`QFE Piping Spool Dashboard · Cut off ${c} · ${label}`;if(prevw)head+=` · ${D.file.name} (${stamp(D.file.uploaded)})`;else if(pub)head+=` · ${pub.file_name||''} (게시 ${stampOrDash(pub.published_at)})`;$('printHead').textContent=head+' · ver.261118'}
@@ -438,6 +443,67 @@ $('pwForm').addEventListener('submit',async e=>{
  catch(err){if(!session)return;m.textContent=err.status===400?'비밀번호는 10자 이상이어야 합니다':'비밀번호를 변경하지 못했습니다. 다시 시도해 주세요';$('pwBtn').disabled=false;return}
  await boot()});
 $('pwOut').onclick=signOut;$('errRetry').onclick=boot;$('errOut').onclick=signOut;
+/* ===== 사용자 관리 (관리자 전용) ===== */
+const ROLE_KO={admin:'관리자',uploader:'업로더',viewer:'조회자'},FN_ERR={400:'입력값을 확인해 주세요',403:'권한이 없습니다',404:'사용자를 찾을 수 없습니다',409:'이미 등록된 이메일입니다'},FN_ERR_DEF='요청을 처리하지 못했습니다. 다시 시도해 주세요';
+const adminUsers=(action,body)=>api('/functions/v1/admin-users',{method:'POST',body:{action,...body}}),usersErr=e=>FN_ERR[e&&e.status]||FN_ERR_DEF;
+let usersList=[],usersOpen=false,usersBusy=false,usersSeq=0;
+function syncUsersTab(){
+ let adm=isAdmin(),btn=document.querySelector('.nav[data-tab="users"]'),sec=$('users');
+ if(adm&&!btn){btn=document.createElement('button');btn.className='nav';btn.type='button';btn.dataset.tab='users';btn.textContent='사용자 관리';btn.onclick=()=>{prefs.tab='users';changed();scrollTo(0,0)};let last=qa('.nav').pop();last.after(btn)}
+ if(!adm){if(btn)btn.remove();if(sec.firstChild)sec.textContent='';usersList=[];usersOpen=false;usersSeq++;closePw();if(prefs.tab==='users')prefs.tab='overview';return}
+ if(prefs.tab==='users'){if(!usersOpen){usersOpen=true;buildUsers();loadUsers()}}else usersOpen=false}
+function buildUsers(){
+ $('users').innerHTML=`<div class="board"><div class="board-head"><span>계정 만들기</span></div><form class="users-form" id="usersForm" novalidate><label class="field">이메일<input id="usrEmail" type="email" maxlength="254" autocomplete="off"></label><label class="field">이름<input id="usrName" type="text" maxlength="100" autocomplete="off"></label><label class="field">회사<input id="usrCompany" type="text" maxlength="100" autocomplete="off"></label><label class="field">권한<select id="usrRole"><option value="admin">관리자</option><option value="uploader">업로더</option><option value="viewer" selected>조회자</option></select></label><button class="btn primary" id="usrCreate" type="submit">계정 만들기</button></form><div class="users-msg" id="usersMsg" role="status"></div></div><div class="board"><div class="board-head"><span>사용자</span></div><div class="tablewrap" id="usersTable"></div></div>`;
+ $('usersForm').addEventListener('submit',createUser);$('usersTable').addEventListener('click',usersClick);$('usersTable').addEventListener('change',usersChange)}
+const usersMsg=(t,good)=>{let m=$('usersMsg');if(m){m.textContent=t;m.className='users-msg '+(good?'ok':'bad')}};
+function setUsersBusy(b){usersBusy=b;qa('#users button,#users select,#users input').forEach(e=>{e.disabled=b||e.dataset.self==='1'})}
+async function usersRun(fn){
+ if(usersBusy)return;setUsersBusy(true);usersMsg('');
+ try{await fn()}catch(e){if(session)usersMsg(usersErr(e))}finally{if($('usersForm'))setUsersBusy(false)}}
+async function loadUsers(){
+ let seq=++usersSeq,t=$('usersTable');if(t)t.textContent='불러오는 중...';
+ setUsersBusy(true);
+ try{let r=await adminUsers('list',{});if(seq!==usersSeq||!isAdmin())return;usersList=Array.isArray(r&&r.users)?r.users:[];renderUsers()}
+ catch(e){if(seq!==usersSeq||!session)return;if($('usersTable'))$('usersTable').textContent='';usersMsg(usersErr(e))}
+ finally{if(seq===usersSeq&&$('usersForm'))setUsersBusy(false)}}
+function renderUsers(){
+ let rows=usersList.map(u=>{let self=!!me&&u.user_id===me.user_id,em=esc(u.email),d=self?' disabled data-self="1"':'';
+  return `<tr data-uid="${esc(u.user_id)}"${u.active?'':' class="off"'}><td>${esc(u.display_name)}</td><td>${em}</td><td>${esc(u.company)}</td><td><select data-act="role" data-prev="${esc(u.role)}" aria-label="권한 변경 ${em}"${d}>${Object.keys(ROLE_KO).map(r=>`<option value="${r}"${u.role===r?' selected':''}>${ROLE_KO[r]}</option>`).join('')}</select></td><td>${u.active?'사용 중':'정지'}</td><td>${u.must_change_password?'예':'아니오'}</td><td><button class="btn" type="button" data-act="active"${d}>${u.active?'정지':'정지 해제'}</button><button class="btn" type="button" data-act="reset"${d}>비밀번호 초기화</button></td></tr>`}).join('');
+ $('usersTable').innerHTML=`<table class="matrix users-table"><thead><tr><th>이름</th><th>이메일</th><th>회사</th><th>권한</th><th>상태</th><th>비밀번호 변경 필요</th><th>작업</th></tr></thead><tbody>${rows}</tbody></table>`}
+const userOf=el=>{let tr=el.closest('tr');return tr&&usersList.find(u=>u.user_id===tr.dataset.uid)};
+function createUser(e){
+ e.preventDefault();
+ let email=$('usrEmail').value.trim(),name=$('usrName').value.trim(),co=$('usrCompany').value.trim(),role=$('usrRole').value;
+ if(usersBusy)return;
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!name||!co){usersMsg('입력값을 확인해 주세요');return}
+ usersRun(async()=>{let r=await adminUsers('create',{email,display_name:name,company:co,role});showPw(email,r&&r.temp_password);r=null;$('usersForm').reset();usersMsg('계정을 만들었습니다',true);await refreshUsers()})}
+async function refreshUsers(){let r=await adminUsers('list',{});if(isAdmin()){usersList=Array.isArray(r&&r.users)?r.users:[];if($('usersTable'))renderUsers()}}
+function usersChange(e){
+ let sel=e.target;if(!sel.matches||!sel.matches('select[data-act="role"]'))return;let u=userOf(sel),prev=sel.dataset.prev,val=sel.value;
+ if(!u)return;if(usersBusy){sel.value=prev;return}
+ usersRun(async()=>{try{await adminUsers('set_role',{user_id:u.user_id,role:val})}catch(err){sel.value=prev;throw err}sel.dataset.prev=val;usersMsg('권한을 변경했습니다',true);await refreshUsers()})}
+function usersClick(e){
+ let b=e.target.closest&&e.target.closest('button[data-act]');if(!b||b.disabled||usersBusy)return;let u=userOf(b);if(!u)return;
+ if(b.dataset.act==='active'){
+  let to=!u.active;
+  if(!to&&!confirm(`${u.email} 계정을 정지하시겠습니까? 정지하면 즉시 데이터 접근이 막힙니다.`))return;
+  usersRun(async()=>{await adminUsers('set_active',{user_id:u.user_id,active:to});usersMsg(to?'정지를 해제했습니다':'계정을 정지했습니다',true);await refreshUsers()})}
+ else if(b.dataset.act==='reset'){
+  if(!confirm(`${u.email} 의 비밀번호를 초기화하시겠습니까? 기존 비밀번호는 더 이상 사용할 수 없습니다.`))return;
+  let em=u.email;
+  usersRun(async()=>{let r=await adminUsers('reset_password',{user_id:u.user_id});showPw(em,r&&r.temp_password);r=null;await refreshUsers()})}}
+/* 임시 비밀번호: 모달 DOM에만 두고 닫을 때 지운다. console/storage에는 쓰지 않는다 */
+function closePw(){let m=$('pwModal');if(m){let v=$('pwVal');if(v)v.textContent='';m.remove()}document.removeEventListener('keydown',pwKey,true)}
+function pwKey(e){if(e.key==='Escape'&&$('pwModal')){e.stopPropagation();closePw()}}
+function showPw(email,pw){
+ closePw();if(typeof pw!=='string'||!pw)throw new Error('no password');
+ let d=document.createElement('div');d.className='pw-back';d.id='pwModal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-label','임시 비밀번호');
+ d.innerHTML=`<div class="pw-modal"><h3>임시 비밀번호</h3><div id="pwWho"></div><code class="pw-val" id="pwVal"></code><div class="pw-note">이 비밀번호는 다시 표시되지 않습니다</div><div class="help">사용자에게 전달하세요. 첫 로그인 때 새 비밀번호를 설정해야 합니다.</div><div class="status" id="pwCopyMsg" role="status"></div><div class="opt-row"><button class="btn primary" id="pwCopy" type="button">복사</button><button class="btn" id="pwClose" type="button">닫기</button></div></div>`;
+ document.body.appendChild(d);$('pwWho').textContent=email;$('pwVal').textContent=pw;
+ let sel=()=>{let r=document.createRange();r.selectNodeContents($('pwVal'));let s=getSelection();s.removeAllRanges();s.addRange(r)};
+ $('pwCopy').onclick=()=>{let t=$('pwVal').textContent,msg=$('pwCopyMsg'),fb=()=>{sel();msg.textContent='선택했습니다. Ctrl+C로 복사해 주세요'};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>{msg.textContent='복사했습니다'},fb);else fb()}catch{fb()}};
+ $('pwClose').onclick=closePw;document.addEventListener('keydown',pwKey,true);$('pwClose').focus()}
 /* 계정이 사용 중 정지되면 창에 다시 포커스가 올 때 감지한다 */
 addEventListener('focus',async()=>{
  if(!session||!me||$('app').hidden||Date.now()-lastCheck<15000)return;lastCheck=Date.now();
