@@ -3,3 +3,7 @@
 *
 !.gitignore
 !QFE_dashboard_prototype.html
+!app.py
+!requirements.txt
+!.streamlit/
+!.streamlit/config.toml
