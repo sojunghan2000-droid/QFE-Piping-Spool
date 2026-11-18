@@ -39,7 +39,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media screen and (max-width:760px){.shell{display:block}.side{padding:12px}.side-note,.side-progress{display:none}.nav{display:inline-block;width:auto}.content{padding:14px 16px}.compact-grid,.reject-summary{grid-template-columns:repeat(2,1fr)}.rule{grid-template-columns:1fr}.pop{top:12px;right:16px;max-height:calc(100vh - 24px)}}
 @media print{@page{size:A4 landscape;margin:9mm}body{background:#fff;font-size:11px}.side,.top,.pop,.drop,#tip,.reject-body,.board-head button,.chip,.chart-tools,.seg{display:none!important}.shell{display:block}.content{padding:0;max-width:none}.section{display:block!important}#progress{break-before:page}.board{break-inside:avoid}#printHead{display:block;border-bottom:2px solid var(--navy);padding-bottom:5px;margin-bottom:10px;font-weight:700}.matrix,.heat{min-width:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .auth-view{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-#loginView[hidden],#pwView[hidden],#app[hidden]{display:none}
+#loginView[hidden],#pwView[hidden],#errView[hidden],#app[hidden]{display:none}
 .auth-card{width:100%;max-width:380px;background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--navy);padding:26px 26px 22px}
 .auth-brand{font-weight:800;font-size:18px;line-height:1.3;color:var(--navy);margin-bottom:4px}.auth-brand small{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em}
 .auth-card h2{font-size:15px;margin:14px 0 12px;color:var(--ink)}.auth-card p.help{color:var(--muted);font-size:12px;margin:0 0 12px}
@@ -59,6 +59,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 <label>새 비밀번호<input id="pwNew" type="password" autocomplete="new-password" required></label>
 <label>새 비밀번호 확인<input id="pwNew2" type="password" autocomplete="new-password" required></label>
 <button class="btn primary" id="pwBtn" type="submit">비밀번호 변경</button><button class="btn link" id="pwOut" type="button">다른 계정으로 로그인</button></form></div>
+<div id="errView" class="auth-view" hidden><div class="auth-card"><div class="auth-brand"><small>QFE PROJECT · ver.261118</small>Spool Fabrication</div><h2>불러오기 실패</h2>
+<div class="auth-msg" id="errMsg" role="alert" aria-live="assertive"></div>
+<button class="btn primary" id="errRetry" type="button">다시 시도</button><button class="btn link" id="errOut" type="button">로그아웃</button></div></div>
 <div id="app" hidden><div class="shell">
 <aside class="side"><div class="brand"><small>QFE PROJECT · ver.261118</small>Spool Fabrication</div><div class="side-progress" id="sideProgress"></div>
 <button class="nav" data-tab="overview" type="button">▦ &nbsp;Overview</button><button class="nav" data-tab="progress" type="button">▥ &nbsp;Progress Chart</button><div class="side-note" id="sideNote"></div></aside>
@@ -221,7 +224,7 @@ function changed(){savePrefs();renderAll()}
 function setSelected(p){selected=p;prefs.selected=p;let v=p||'WELDING';prefs.charts.s.p=v;prefs.charts.b.p=v;changed()}
 
 /* ===== 업로드 ===== */
-async function handleFile(file){if(!file)return;let badge=$('dataBadge');badge.classList.remove('real');badge.classList.add('busy');badge.textContent='읽는 중...';try{let wb=await readWorkbook(file);if(!wb.WJCS)throw Error('WJCS 시트가 없습니다.');D={file:{name:file.name,modified:file.lastModified,uploaded:Date.now()},w:sheetTable(wb.WJCS,'w'),s:wb.SPOOL?sheetTable(wb.SPOOL,'s'):null};rf={state:'ALL',m:'ALL',area:'ALL',q:''};$('rfState').value='ALL';$('rfMat').value='ALL';$('rfQ').value='';baseVals={};badge.classList.remove('busy');aggregate();renderRuleLists();renderAll()}catch(err){badge.classList.remove('busy');renderChrome();alert('업로드 실패: '+err.message)}}
+async function handleFile(file){if(!file||!authed())return;let badge=$('dataBadge');badge.classList.remove('real');badge.classList.add('busy');badge.textContent='읽는 중...';try{let wb=await readWorkbook(file);if(!wb.WJCS)throw Error('WJCS 시트가 없습니다.');D={file:{name:file.name,modified:file.lastModified,uploaded:Date.now()},w:sheetTable(wb.WJCS,'w'),s:wb.SPOOL?sheetTable(wb.SPOOL,'s'):null};rf={state:'ALL',m:'ALL',area:'ALL',q:''};$('rfState').value='ALL';$('rfMat').value='ALL';$('rfQ').value='';baseVals={};badge.classList.remove('busy');aggregate();renderRuleLists();renderAll()}catch(err){badge.classList.remove('busy');renderChrome();alert('업로드 실패: '+err.message)}}
 function toSample(){D=null;aggregate();renderRuleLists();renderAll()}
 
 /* ===== 이벤트 ===== */
@@ -254,7 +257,7 @@ function applyPrefs(){selected=prefs.selected;savePrefs();aggregate();renderRule
 $('prefExport').onclick=()=>{downloadBlob(`QFE_dashboard_settings_${today().replace(/-/g,'')}.json`,JSON.stringify(prefs,null,2),'application/json');prefMsg('설정을 내보냈습니다.')};$('prefImport').onclick=()=>$('prefFile').click();
 $('prefFile').onchange=async e=>{let f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>200*1024){prefMsg('설정 파일은 200KB 이하만 불러올 수 있습니다.',false);return}try{let x=JSON.parse(await f.text());if(!x||typeof x!=='object'||Array.isArray(x)||!x.sel)throw Error('형식 오류');prefs=cleanPrefs(x);applyPrefs();prefMsg('설정을 불러왔습니다.')}catch{prefMsg('설정 파일 형식이 올바르지 않습니다.',false)}};
 $('prefReset').onclick=()=>{let plan=prefs.plan;prefs=cleanPrefs();prefs.plan=plan;applyPrefs();prefMsg('설정을 초기화했습니다. Plan은 유지됩니다.')};
-let dragDepth=0;const hasFile=e=>[...(e.dataTransfer?.types||[])].includes('Files');addEventListener('dragenter',e=>{if(!hasFile(e))return;e.preventDefault();dragDepth++;$('dropLayer').hidden=false});addEventListener('dragover',e=>{if(hasFile(e))e.preventDefault()});addEventListener('dragleave',e=>{if(!hasFile(e))return;dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('dropLayer').hidden=true});addEventListener('drop',e=>{if(!hasFile(e))return;e.preventDefault();dragDepth=0;$('dropLayer').hidden=true;handleFile(e.dataTransfer.files[0])});
+let dragDepth=0;const hasFile=e=>[...(e.dataTransfer?.types||[])].includes('Files');addEventListener('dragenter',e=>{if(!hasFile(e))return;e.preventDefault();dragDepth++;$('dropLayer').hidden=false});addEventListener('dragover',e=>{if(hasFile(e))e.preventDefault()});addEventListener('dragleave',e=>{if(!hasFile(e))return;dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('dropLayer').hidden=true});addEventListener('drop',e=>{if(!hasFile(e))return;e.preventDefault();dragDepth=0;$('dropLayer').hidden=true;if(authed())handleFile(e.dataTransfer.files[0])});
 const tip=$('tip');document.addEventListener('mousemove',e=>{let el=e.target.closest&&e.target.closest('[data-tip]');if(!el){tip.style.display='none';return}let[title,rows]=JSON.parse(el.dataset.tip);tip.innerHTML=`<b>${esc(title)}</b>${rows.map(([a,b])=>`<div><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('')}`;tip.style.display='block';let r=tip.getBoundingClientRect();tip.style.left=Math.min(innerWidth-r.width-8,e.clientX+14)+'px';tip.style.top=Math.min(innerHeight-r.height-8,e.clientY+14)+'px'});
 
 /* ===== 인증 ===== */
@@ -266,16 +269,22 @@ function saveSession(s){session=s;try{sessionStorage.setItem(SESSION_KEY,JSON.st
 function clearSession(){session=null;me=null;try{sessionStorage.removeItem(SESSION_KEY)}catch{}}
 const toSession=j=>({access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||nowSec()+(j.expires_in||3600)});
 function jwtSub(t){try{return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub||null}catch{return null}}
-function showView(v,msg){$('loginView').hidden=v!=='login';$('pwView').hidden=v!=='pw';$('app').hidden=v!=='app';
+function showView(v,msg){$('loginView').hidden=v!=='login';$('pwView').hidden=v!=='pw';$('errView').hidden=v!=='err';$('app').hidden=v!=='app';
  if(v==='login'){$('loginMsg').textContent=msg||'';$('loginPw').value='';$('loginBtn').disabled=false;if(msg)try{$('loginPw').focus()}catch{}}
+ if(v==='err')$('errMsg').textContent=msg||'';
  if(v==='pw'){$('pwMsg').textContent=msg||'';$('pwNew').value='';$('pwNew2').value='';$('pwBtn').disabled=false}}
 const showLogin=msg=>showView('login',msg);
+const NOTICE_KEY='qfeNotice',authed=()=>!!session&&!!me&&me.active===true&&!$('app').hidden;
+let reloadPage=()=>location.reload();
+function takeNotice(){try{let n=sessionStorage.getItem(NOTICE_KEY)||'';sessionStorage.removeItem(NOTICE_KEY);return n}catch{return''}}
+/* 세션이 끝나면(로그아웃·정지·갱신 실패) 이전 사용자의 화면 상태가 남지 않도록 페이지를 새로 고친다. 안내 문구만 일회성으로 넘긴다 */
+function endSession(msg){let was=started;clearSession();showLogin(msg);if(was){try{sessionStorage.setItem(NOTICE_KEY,msg||'')}catch{}reloadPage()}}
 function refreshSession(){
  if(refreshing)return refreshing;
  refreshing=(async()=>{
   let s=session||readSession();if(!s||!s.refresh_token)throw Object.assign(new Error('no session'),{status:401});
   let r;try{r=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})})}catch(e){throw Object.assign(new Error('network'),{status:0})}
-  if(!r.ok){clearSession();showLogin();throw Object.assign(new Error('session expired'),{status:401})}
+  if(!r.ok){endSession();throw Object.assign(new Error('session expired'),{status:401})}
   let j=await r.json();saveSession(toSession(j));return session})();
  let p=refreshing,done=()=>{if(refreshing===p)refreshing=null};p.then(done,done);return p}
 async function api(path,opts={},retried=false){
@@ -296,22 +305,22 @@ async function signIn(email,password){
 async function signOut(){
  let s=session;
  if(s){try{await fetch(SB_URL+'/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:SB_KEY,Authorization:'Bearer '+s.access_token}})}catch{}}
- clearSession();showLogin()}
+ endSession()}
 async function loadMe(){
  let id=session&&jwtSub(session.access_token);if(!id)throw Object.assign(new Error('invalid session'),{status:401});
  let rows=await api('/rest/v1/profiles?select=user_id,email,display_name,company,role,active,must_change_password&user_id=eq.'+encodeURIComponent(id));
  me=Array.isArray(rows)&&rows[0]?rows[0]:null;return me}
-function rejectInactive(){clearSession();showLogin(SUSPENDED)}
+function rejectInactive(){endSession(SUSPENDED)}
 function enterApp(){
  showView('app');
  if(!started){started=true;aggregate();renderRuleLists();renderPlanTable();renderAll()}}
 async function boot(){
- session=readSession();
- if(!session){showLogin();return}
+ session=readSession();let notice=takeNotice();
+ if(!session){showLogin(notice);return}
  try{await loadMe()}catch(e){
   if(!session)return;
-  let net=e.status===0||e instanceof TypeError;
-  showLogin(net?'서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요':'정보를 불러오지 못했습니다. 다시 로그인해 주세요');if(!net)clearSession();return}
+  if(e.status===401){endSession('로그인이 만료되었습니다. 다시 로그인해 주세요');return}
+  showView('err','정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');return}
  if(!me||!me.active){rejectInactive();return}
  lastCheck=Date.now();
  if(me.must_change_password){showView('pw');return}
@@ -328,7 +337,7 @@ $('pwForm').addEventListener('submit',async e=>{
  try{await api('/functions/v1/admin-users',{method:'POST',body:{action:'complete_password_change',new_password:a}})}
  catch(err){if(!session)return;m.textContent=err.status===400?'비밀번호는 10자 이상이어야 합니다':'비밀번호를 변경하지 못했습니다. 다시 시도해 주세요';$('pwBtn').disabled=false;return}
  await boot()});
-$('pwOut').onclick=signOut;
+$('pwOut').onclick=signOut;$('errRetry').onclick=boot;$('errOut').onclick=signOut;
 /* 계정이 사용 중 정지되면 창에 다시 포커스가 올 때 감지한다 */
 addEventListener('focus',async()=>{
  if(!session||!me||$('app').hidden||Date.now()-lastCheck<15000)return;lastCheck=Date.now();
