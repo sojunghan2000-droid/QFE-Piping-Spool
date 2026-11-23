@@ -7,3 +7,5 @@
 !requirements.txt
 !.streamlit/
 !.streamlit/config.toml
+!static/
+!static/QFE_guide.txt
