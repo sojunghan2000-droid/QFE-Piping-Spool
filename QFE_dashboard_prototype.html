@@ -69,15 +69,14 @@ body.stage{padding-top:24px}body.stage .top{top:24px}body.stage .pop{top:86px}bo
 <label>비밀번호<input id="loginPw" type="password" autocomplete="current-password" required></label>
 <button class="btn primary" id="loginBtn" type="submit">로그인</button><button class="btn link" id="signupLink" type="button">회원가입</button></form></div>
 <div id="signupView" class="auth-view" hidden><form class="auth-card" id="signupForm" novalidate><div class="auth-brand"><small>QFE PROJECT · ver.261118</small>Spool Fabrication</div><h2>회원가입 신청</h2>
-<p class="help">가입 신청 후 관리자가 승인하면 로그인할 수 있습니다.</p>
+<p class="help">이름, 회사, 이메일, 연락처를 남기면 관리자가 확인한 뒤 임시 비밀번호를 전달해 드립니다.</p>
 <div class="auth-msg" id="signupMsg" role="alert" aria-live="assertive"></div>
 <label>이름<input id="suName" type="text" maxlength="50" autocomplete="name" required></label>
 <label>회사<input id="suCompany" type="text" maxlength="80" autocomplete="organization" required></label>
 <label>이메일<input id="suEmail" type="email" maxlength="254" autocomplete="email" required></label>
-<label>비밀번호<input id="suPw" type="password" autocomplete="new-password" required></label><div class="help small">10자 이상, 72바이트 이하</div>
-<label>비밀번호 확인<input id="suPw2" type="password" autocomplete="new-password" required></label>
+<label>연락처<input id="suPhone" type="tel" maxlength="20" autocomplete="tel" required></label>
 <div class="hp" aria-hidden="true"><label>website<input id="suWebsite" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
-<label class="consent"><input id="suConsent" type="checkbox" required><span>가입 신청을 위해 이름, 회사, 이메일을 수집하며 계정 관리 목적으로만 사용합니다.</span></label>
+<label class="consent"><input id="suConsent" type="checkbox" required><span>가입 신청을 위해 이름, 회사, 이메일, 연락처를 수집하며 계정 발급 목적으로만 사용합니다. 처리되지 않은 신청은 14일 후 자동 삭제됩니다.</span></label>
 <button class="btn primary" id="signupBtn" type="submit">가입 신청</button><button class="btn link" id="signupBack" type="button">로그인으로 돌아가기</button></form></div>
 <div id="pwView" class="auth-view" hidden><form class="auth-card" id="pwForm" novalidate><div class="auth-brand"><small>QFE PROJECT · ver.261118</small>Spool Fabrication</div><h2>새 비밀번호 설정</h2>
 <p class="help">임시 비밀번호로 로그인하셨습니다. 새 비밀번호(10자 이상)를 설정해야 대시보드를 사용할 수 있습니다.</p>
@@ -357,7 +356,7 @@ let dragDepth=0;const hasFile=e=>[...(e.dataTransfer?.types||[])].includes('File
 const tip=$('tip');document.addEventListener('mousemove',e=>{let el=e.target.closest&&e.target.closest('[data-tip]');if(!el){tip.style.display='none';return}let[title,rows]=JSON.parse(el.dataset.tip);tip.innerHTML=`<b>${esc(title)}</b>${rows.map(([a,b])=>`<div><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('')}`;tip.style.display='block';let r=tip.getBoundingClientRect();tip.style.left=Math.min(innerWidth-r.width-8,e.clientX+14)+'px';tip.style.top=Math.min(innerHeight-r.height-8,e.clientY+14)+'px'});
 
 /* ===== 인증 ===== */
-const SB_URL='https://xsyoadrhcbpjxgvbpapu.supabase.co',SB_KEY='sb_publishable_hksRZov6xjjy1LLBOrL73A_598e5CyJ',SESSION_KEY='qfeSession',LOGIN_FAIL='이메일 또는 비밀번호를 확인해 주세요',SUSPENDED='계정이 정지되었습니다',PENDING_MSG='가입 승인 대기 중입니다. 관리자 승인 후 이용할 수 있습니다.',SIGNUP_DONE='가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.';
+const SB_URL='https://xsyoadrhcbpjxgvbpapu.supabase.co',SB_KEY='sb_publishable_hksRZov6xjjy1LLBOrL73A_598e5CyJ',SESSION_KEY='qfeSession',LOGIN_FAIL='이메일 또는 비밀번호를 확인해 주세요',SUSPENDED='계정이 정지되었습니다',SIGNUP_DONE='가입 신청이 접수되었습니다. 관리자가 확인한 뒤 임시 비밀번호를 전달해 드립니다.';
 let session=null,me=null,started=false,refreshing=null,lastCheck=0;
 const nowSec=()=>Math.floor(Date.now()/1000);
 function readSession(){try{let s=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(s&&s.access_token&&s.refresh_token)return s}catch{}return session}
@@ -405,9 +404,9 @@ async function signOut(){
  endSession()}
 async function loadMe(){
  let id=session&&jwtSub(session.access_token);if(!id)throw Object.assign(new Error('invalid session'),{status:401});
- let rows=await api('/rest/v1/profiles?select=user_id,email,display_name,company,role,active,must_change_password,pending&user_id=eq.'+encodeURIComponent(id));
+ let rows=await api('/rest/v1/profiles?select=user_id,email,display_name,company,role,active,must_change_password&user_id=eq.'+encodeURIComponent(id));
  me=Array.isArray(rows)&&rows[0]?rows[0]:null;return me}
-function rejectInactive(){endSession(me&&me.pending===true?PENDING_MSG:SUSPENDED)}
+function rejectInactive(){endSession(SUSPENDED)}
 /* ===== 게시본 조회 ===== */
 const SNAP_COLS='id,published_at,published_by,publisher_name,file_name,file_modified,wjcs_rows,spool_rows,payload',SNAP_ORDER='order=published_at.desc,id.desc&limit=1';
 async function loadCurrent(){
@@ -452,7 +451,7 @@ async function boot(){
   if(!session)return;
   if(e.status===401){endSession('로그인이 만료되었습니다. 다시 로그인해 주세요');return}
   showView('err','정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');return}
- if(!me||!me.active||me.pending===true){rejectInactive();return}
+ if(!me||!me.active){rejectInactive();return}
  lastCheck=Date.now();
  if(me.must_change_password){showView('pw');return}
  await startApp()}
@@ -460,25 +459,26 @@ $('loginForm').addEventListener('submit',async e=>{
  e.preventDefault();let b=$('loginBtn');b.disabled=true;$('loginMsg').textContent='';
  try{await signIn($('loginEmail').value,$('loginPw').value)}catch(err){showLogin(err.message);return}
  await boot()});
-/* ===== 회원가입 신청 ===== */
-const SU_FIELDS=['suName','suCompany','suEmail','suPw','suPw2','suWebsite'],SU_EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/* ===== 가입 신청 (비밀번호 없음) ===== */
+const SU_FIELDS=['suName','suCompany','suEmail','suPhone','suWebsite'],SU_BAD=/[\p{Cc}\p{Cf}\u2028\u2029]/u,SU_PHONE=/^[0-9 +()\-]{7,20}$/;
+function suEmailOk(e){
+ if(e.length<3||e.length>254||/[\s\x00-\x20\x7f]/.test(e))return false;
+ let at=e.indexOf('@');if(at<1||at!==e.lastIndexOf('@'))return false;
+ let d=e.slice(at+1);return d.length>=3&&d.includes('.')&&!d.startsWith('.')&&!d.endsWith('.')&&!d.includes('..')}
+function suText(v,max){let s=String(v).normalize('NFC').trim(),n=[...s].length;return!SU_BAD.test(s)&&n>=1&&n<=max?s:null}
 function clearSignup(){SU_FIELDS.forEach(k=>{let e=$(k);if(e)e.value=''});$('suConsent').checked=false;$('signupMsg').textContent='';$('signupBtn').disabled=false}
 function openSignup(){clearSignup();showView('signup');try{$('suName').focus()}catch{}}
 function signupError(err){
- let st=err&&err.status,c=err&&err.body&&err.body.error;
- if(st===400)return c==='password_too_long'?'비밀번호는 72바이트 이하로 입력해 주세요':'입력값을 확인해 주세요';
- if(st===422)return'유출된 적 있는 비밀번호입니다. 다른 비밀번호를 입력해 주세요';
+ let st=err&&err.status;
+ if(st===400)return'입력값을 확인해 주세요';
  if(st===503)return'현재 가입 신청을 받을 수 없습니다. 관리자에게 문의해 주세요';
  if(st===429)return'요청이 많습니다. 잠시 후 다시 시도해 주세요';
  return'일시적인 오류입니다. 잠시 후 다시 시도해 주세요'}
 async function submitSignup(){
- let m=$('signupMsg'),name=$('suName').value.trim(),co=$('suCompany').value.trim(),email=$('suEmail').value.trim().toLowerCase(),pw=$('suPw').value,pw2=$('suPw2').value;
- if(!name||name.length>50||!co||co.length>80||!SU_EMAIL.test(email)||email.length>254||!$('suConsent').checked){m.textContent='입력값을 확인해 주세요';return}
- if(pw.length<10){m.textContent='비밀번호는 10자 이상이어야 합니다';return}
- if(new TextEncoder().encode(pw).length>72){m.textContent='비밀번호는 72바이트 이하로 입력해 주세요';return}
- if(pw!==pw2){m.textContent='비밀번호가 서로 일치하지 않습니다';return}
+ let m=$('signupMsg'),name=suText($('suName').value,50),co=suText($('suCompany').value,80),email=$('suEmail').value.trim().toLowerCase(),phone=$('suPhone').value.trim();
+ if(name===null||co===null||!suEmailOk(email)||!SU_PHONE.test(phone)||!$('suConsent').checked){m.textContent='입력값을 확인해 주세요';return}
  let b=$('signupBtn');if(b.disabled)return;b.disabled=true;m.textContent='';
- try{await api('/functions/v1/signup',{method:'POST',anon:true,body:{email,display_name:name,company:co,password:pw,consent:true,website:$('suWebsite').value}})}
+ try{await api('/functions/v1/signup',{method:'POST',anon:true,body:{email,display_name:name,company:co,phone,consent:true,website:$('suWebsite').value}})}
  catch(err){m.textContent=signupError(err);b.disabled=false;return}
  clearSignup();showLogin(SIGNUP_DONE,true)}
 $('signupLink').onclick=openSignup;$('signupBack').onclick=()=>{clearSignup();showLogin('')};
@@ -499,18 +499,23 @@ $('pwOut').onclick=signOut;$('errRetry').onclick=boot;$('errOut').onclick=signOu
 /* ===== 사용자 관리 (관리자 전용) ===== */
 const ROLE_KO={admin:'관리자',uploader:'업로더',viewer:'조회자'},FN_ERR={400:'입력값을 확인해 주세요',403:'권한이 없습니다',404:'사용자를 찾을 수 없습니다',409:'이미 등록된 이메일입니다'},FN_ERR_DEF='요청을 처리하지 못했습니다. 다시 시도해 주세요';
 const adminUsers=(action,body)=>api('/functions/v1/admin-users',{method:'POST',body:{action,...body}}),usersErr=e=>FN_ERR[e&&e.status]||FN_ERR_DEF;
-let usersList=[],usersOpen=false,usersBusy=false,usersSeq=0,usersTodo=0;
-function setUsersLabel(){let b=document.querySelector('.nav[data-tab="users"]');usersTodo=usersList.filter(u=>u.pending===true).length;if(b)b.textContent=usersTodo?`사용자 관리 (${usersTodo})`:'사용자 관리'}
-/* 가입 신청 수를 새로 고친다: 사용자 관리 탭을 열 때와 창에 다시 포커스가 올 때 */
-async function pollUsers(){if(!isAdmin()||usersBusy)return;let seq=usersSeq;try{let r=await adminUsers('list',{});if(!isAdmin()||usersBusy||seq!==usersSeq)return;usersList=Array.isArray(r&&r.users)?r.users:[];setUsersLabel();if($('usersTable'))renderUsers()}catch{}}
+let usersList=[],usersOpen=false,usersBusy=false,usersSeq=0,reqList=[],reqRole={};
+function setUsersLabel(){let b=document.querySelector('.nav[data-tab="users"]');if(b)b.textContent=reqList.length?`사용자 관리 (${reqList.length})`:'사용자 관리'}
+/* 가입 신청: 선택한 권한은 신청 id별로 기억해 새로 고쳐도 유지한다 */
+function setReqs(r){reqList=Array.isArray(r&&r.requests)?r.requests:[];let ids=new Set(reqList.map(x=>x.id));for(let k of Object.keys(reqRole))if(!ids.has(k))delete reqRole[k];setUsersLabel()}
+async function pollUsers(){if(!isAdmin()||usersBusy)return;let seq=usersSeq;try{let r=await adminUsers('list_requests',{});if(!isAdmin()||usersBusy||seq!==usersSeq)return;setReqs(r);if($('pendingTable'))renderReqs()}catch{}}
+function renderReqs(){
+ let t=$('pendingTable');if(!t)return;
+ t.innerHTML=reqList.length?`<table class="matrix pending-table"><thead><tr><th>이름</th><th>회사</th><th>이메일</th><th>연락처</th><th>신청일</th><th>권한</th><th>작업</th></tr></thead><tbody>${reqList.map(q=>{let em=esc(q.email),sel=ROLE_KO[reqRole[q.id]]?reqRole[q.id]:'viewer';return `<tr data-rid="${esc(q.id)}"><td>${esc(q.display_name)}</td><td>${esc(q.company)}</td><td>${em}</td><td>${esc(q.phone)}</td><td>${esc(String(q.requested_at||'').slice(0,10))}</td><td><select data-act="req-role" aria-label="승인 권한 ${em}">${Object.keys(ROLE_KO).map(r=>`<option value="${r}"${r===sel?' selected':''}>${ROLE_KO[r]}</option>`).join('')}</select></td><td><button class="btn primary" type="button" data-act="req-approve">승인</button><button class="btn" type="button" data-act="req-reject">거절</button></td></tr>`}).join('')}</tbody></table>`:'<div class="pending-note">대기 중인 가입 신청이 없습니다.</div>';
+ if(usersBusy)setUsersBusy(true)}
 function syncUsersTab(){
  let adm=isAdmin(),btn=document.querySelector('.nav[data-tab="users"]'),sec=$('users');
  if(adm&&!btn){btn=document.createElement('button');btn.className='nav';btn.type='button';btn.dataset.tab='users';btn.textContent='사용자 관리';btn.onclick=()=>{prefs.tab='users';changed();scrollTo(0,0)};let last=qa('.nav').pop();last.after(btn);pollUsers()}
- if(!adm){if(btn)btn.remove();if(sec.firstChild)sec.textContent='';usersList=[];usersTodo=0;usersOpen=false;usersSeq++;closePw();if(prefs.tab==='users')prefs.tab='overview';return}
+ if(!adm){if(btn)btn.remove();if(sec.firstChild)sec.textContent='';usersList=[];reqList=[];reqRole={};usersOpen=false;usersSeq++;closePw();if(prefs.tab==='users')prefs.tab='overview';return}
  if(prefs.tab==='users'){if(!usersOpen){usersOpen=true;buildUsers();loadUsers()}}else usersOpen=false}
 function buildUsers(){
  $('users').innerHTML=`<div class="board"><div class="board-head"><span>계정 만들기</span></div><form class="users-form" id="usersForm" novalidate><label class="field">이메일<input id="usrEmail" type="email" maxlength="254" autocomplete="off"></label><label class="field">이름<input id="usrName" type="text" maxlength="100" autocomplete="off"></label><label class="field">회사<input id="usrCompany" type="text" maxlength="100" autocomplete="off"></label><label class="field">권한<select id="usrRole"><option value="admin">관리자</option><option value="uploader">업로더</option><option value="viewer" selected>조회자</option></select></label><button class="btn primary" id="usrCreate" type="submit">계정 만들기</button></form><div class="users-msg" id="usersMsg" role="status"></div></div><div class="board"><div class="board-head"><span>가입 신청</span></div><div class="tablewrap" id="pendingTable"></div></div><div class="board"><div class="board-head"><span>사용자</span></div><div class="tablewrap" id="usersTable"></div></div>`;
- $('usersForm').addEventListener('submit',createUser);$('usersTable').addEventListener('click',usersClick);$('usersTable').addEventListener('change',usersChange);$('pendingTable').addEventListener('click',usersClick)}
+ $('usersForm').addEventListener('submit',createUser);$('usersTable').addEventListener('click',usersClick);$('usersTable').addEventListener('change',usersChange);$('pendingTable').addEventListener('click',usersClick);$('pendingTable').addEventListener('change',e=>{let s=e.target,tr=s.closest&&s.closest('tr');if(s.matches&&s.matches('select[data-act="req-role"]')&&tr)reqRole[tr.dataset.rid]=s.value})}
 const usersMsg=(t,good)=>{let m=$('usersMsg');if(m){m.textContent=t;m.className='users-msg '+(good?'ok':'bad')}};
 function setUsersBusy(b){usersBusy=b;qa('#users button,#users select,#users input').forEach(e=>{e.disabled=b||e.dataset.self==='1'})}
 async function usersRun(fn){
@@ -519,15 +524,12 @@ async function usersRun(fn){
 async function loadUsers(){
  let seq=++usersSeq,t=$('usersTable');if(t)t.textContent='불러오는 중...';
  setUsersBusy(true);
- try{let r=await adminUsers('list',{});if(seq!==usersSeq||!isAdmin())return;usersList=Array.isArray(r&&r.users)?r.users:[];renderUsers()}
+ try{let[r,q]=await Promise.all([adminUsers('list',{}),adminUsers('list_requests',{})]);if(seq!==usersSeq||!isAdmin())return;usersList=Array.isArray(r&&r.users)?r.users:[];setReqs(q);renderUsers()}
  catch(e){if(seq!==usersSeq||!session)return;if($('usersTable'))$('usersTable').textContent='';usersMsg(usersErr(e))}
  finally{if(seq===usersSeq&&$('usersForm'))setUsersBusy(false)}}
 function renderUsers(){
- setUsersLabel();
- let pend=usersList.filter(u=>u.pending===true);
- if($('pendingTable')){
-  $('pendingTable').innerHTML=pend.length?`<table class="matrix pending-table"><thead><tr><th>이름</th><th>이메일</th><th>회사</th><th>신청일</th><th>권한</th><th>작업</th></tr></thead><tbody>${pend.map(u=>{let em=esc(u.email);return `<tr data-uid="${esc(u.user_id)}"><td>${esc(u.display_name)}</td><td>${em}</td><td>${esc(u.company)}</td><td>${esc(String(u.requested_at||'').slice(0,10))}</td><td><select data-act="approve-role" aria-label="승인 권한 ${em}">${Object.keys(ROLE_KO).map(r=>`<option value="${r}"${r==='viewer'?' selected':''}>${ROLE_KO[r]}</option>`).join('')}</select></td><td><button class="btn primary" type="button" data-act="approve">승인</button><button class="btn" type="button" data-act="reject">거절</button></td></tr>`}).join('')}</tbody></table>`:'<div class="pending-note">대기 중인 가입 신청이 없습니다.</div>'}
- let rows=usersList.filter(u=>u.pending!==true).map(u=>{let self=!!me&&u.user_id===me.user_id,em=esc(u.email),d=self?' disabled data-self="1"':'';
+ renderReqs();
+ let rows=usersList.map(u=>{let self=!!me&&u.user_id===me.user_id,em=esc(u.email),d=self?' disabled data-self="1"':'';
   return `<tr data-uid="${esc(u.user_id)}"${u.active?'':' class="off"'}><td>${esc(u.display_name)}</td><td>${em}</td><td>${esc(u.company)}</td><td><select data-act="role" data-prev="${esc(u.role)}" aria-label="권한 변경 ${em}"${d}>${Object.keys(ROLE_KO).map(r=>`<option value="${r}"${u.role===r?' selected':''}>${ROLE_KO[r]}</option>`).join('')}</select></td><td>${u.active?'사용 중':'정지'}</td><td>${u.must_change_password?'예':'아니오'}</td><td><button class="btn" type="button" data-act="active"${d}>${u.active?'정지':'정지 해제'}</button><button class="btn" type="button" data-act="reset"${d}>비밀번호 초기화</button></td></tr>`}).join('');
  $('usersTable').innerHTML=`<table class="matrix users-table"><thead><tr><th>이름</th><th>이메일</th><th>회사</th><th>권한</th><th>상태</th><th>비밀번호 변경 필요</th><th>작업</th></tr></thead><tbody>${rows}</tbody></table>`}
 const userOf=el=>{let tr=el.closest('tr');return tr&&usersList.find(u=>u.user_id===tr.dataset.uid)};
@@ -537,20 +539,24 @@ function createUser(e){
  if(usersBusy)return;
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!name||!co){usersMsg('입력값을 확인해 주세요');return}
  usersRun(async()=>{let r=await adminUsers('create',{email,display_name:name,company:co,role});showPw(email,r&&r.temp_password);r=null;$('usersForm').reset();usersMsg('계정을 만들었습니다',true);await refreshUsers()})}
-async function refreshUsers(){let r=await adminUsers('list',{});if(isAdmin()){usersList=Array.isArray(r&&r.users)?r.users:[];setUsersLabel();if($('usersTable'))renderUsers()}}
+async function refreshUsers(){let[r,q]=await Promise.all([adminUsers('list',{}),adminUsers('list_requests',{})]);if(isAdmin()){usersList=Array.isArray(r&&r.users)?r.users:[];setReqs(q);if($('usersTable'))renderUsers()}}
 function usersChange(e){
  let sel=e.target;if(!sel.matches||!sel.matches('select[data-act="role"]'))return;let u=userOf(sel),prev=sel.dataset.prev,val=sel.value;
  if(!u)return;if(usersBusy){sel.value=prev;return}
  usersRun(async()=>{try{await adminUsers('set_role',{user_id:u.user_id,role:val})}catch(err){sel.value=prev;throw err}sel.dataset.prev=val;usersMsg('권한을 변경했습니다',true);await refreshUsers()})}
+function reqAction(b){
+ let tr=b.closest('tr'),r=reqList.find(x=>x.id===tr.dataset.rid);if(!r)return;
+ let ap=b.dataset.act==='req-approve',em=r.email,role=tr.querySelector('select').value;
+ if(!ap&&!confirm(`${em} 가입 신청을 거절하시겠습니까? 신청 정보가 삭제됩니다.`))return;
+ usersRun(async()=>{
+  let res;try{res=await adminUsers(ap?'approve_request':'reject_request',ap?{request_id:r.id,role}:{request_id:r.id})}catch(err){if(err&&(err.status===404||err.status===409))await refreshUsers().catch(()=>{});throw err}
+  if(ap){showPw(em,res&&res.temp_password,true);res=null}
+  usersMsg(ap?`${em} 계정을 만들었습니다`:`${em} 가입 신청을 거절했습니다`,true);await refreshUsers()})}
 function usersClick(e){
- let b=e.target.closest&&e.target.closest('button[data-act]');if(!b||b.disabled||usersBusy)return;let u=userOf(b);if(!u)return;
- if(b.dataset.act==='approve'||b.dataset.act==='reject'){
-  let sel=b.closest('tr').querySelector('select'),role=sel?sel.value:'viewer',em=u.email;
-  if(b.dataset.act==='reject'&&!confirm(`${em} 가입 신청을 거절하시겠습니까? 신청 정보가 삭제됩니다.`))return;
-  usersRun(async()=>{let ap=b.dataset.act==='approve';
-   try{await adminUsers(ap?'approve':'reject',ap?{user_id:u.user_id,role}:{user_id:u.user_id})}catch(err){if(err&&err.status===400)await refreshUsers().catch(()=>{});throw err}
-   usersMsg(ap?`${em} 가입을 승인했습니다`:`${em} 가입 신청을 거절했습니다`,true);await refreshUsers()})}
- else if(b.dataset.act==='active'){
+ let b=e.target.closest&&e.target.closest('button[data-act]');if(!b||b.disabled||usersBusy)return;
+ if(b.dataset.act==='req-approve'||b.dataset.act==='req-reject')return reqAction(b);
+ let u=userOf(b);if(!u)return;
+ if(b.dataset.act==='active'){
   let to=!u.active;
   if(!to&&!confirm(`${u.email} 계정을 정지하시겠습니까? 정지하면 즉시 데이터 접근이 막힙니다.`))return;
   usersRun(async()=>{await adminUsers('set_active',{user_id:u.user_id,active:to});usersMsg(to?'정지를 해제했습니다':'계정을 정지했습니다',true);await refreshUsers()})}
@@ -561,10 +567,10 @@ function usersClick(e){
 /* 임시 비밀번호: 모달 DOM에만 두고 닫을 때 지운다. console/storage에는 쓰지 않는다 */
 function closePw(){let m=$('pwModal');if(m){let v=$('pwVal');if(v)v.textContent='';m.remove()}document.removeEventListener('keydown',pwKey,true)}
 function pwKey(e){if(e.key==='Escape'&&$('pwModal')){e.stopPropagation();closePw()}}
-function showPw(email,pw){
+function showPw(email,pw,verify){
  closePw();if(typeof pw!=='string'||!pw)throw new Error('no password');
  let d=document.createElement('div');d.className='pw-back';d.id='pwModal';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-label','임시 비밀번호');
- d.innerHTML=`<div class="pw-modal"><h3>임시 비밀번호</h3><div id="pwWho"></div><code class="pw-val" id="pwVal"></code><div class="pw-note">이 비밀번호는 다시 표시되지 않습니다</div><div class="help">사용자에게 전달하세요. 첫 로그인 때 새 비밀번호를 설정해야 합니다.</div><div class="status" id="pwCopyMsg" role="status"></div><div class="opt-row"><button class="btn primary" id="pwCopy" type="button">복사</button><button class="btn" id="pwClose" type="button">닫기</button></div></div>`;
+ d.innerHTML=`<div class="pw-modal"><h3>임시 비밀번호</h3><div id="pwWho"></div><code class="pw-val" id="pwVal"></code><div class="pw-note">이 비밀번호는 다시 표시되지 않습니다</div>${verify?'<div class="pw-note">신청자 본인임을 연락처로 확인한 뒤 전달해 주세요.</div>':''}<div class="help">사용자에게 전달하세요. 첫 로그인 때 새 비밀번호를 설정해야 합니다.</div><div class="status" id="pwCopyMsg" role="status"></div><div class="opt-row"><button class="btn primary" id="pwCopy" type="button">복사</button><button class="btn" id="pwClose" type="button">닫기</button></div></div>`;
  document.body.appendChild(d);$('pwWho').textContent=email;$('pwVal').textContent=pw;
  let sel=()=>{let r=document.createRange();r.selectNodeContents($('pwVal'));let s=getSelection();s.removeAllRanges();s.addRange(r)};
  $('pwCopy').onclick=()=>{let t=$('pwVal').textContent,msg=$('pwCopyMsg'),fb=()=>{sel();msg.textContent='선택했습니다. Ctrl+C로 복사해 주세요'};
