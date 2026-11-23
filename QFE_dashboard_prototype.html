@@ -498,7 +498,7 @@ async function submitPwChange(a,b){
 $('pwOut').onclick=signOut;$('errRetry').onclick=boot;$('errOut').onclick=signOut;
 /* ===== 사용자 관리 (관리자 전용) ===== */
 const ROLE_KO={admin:'관리자',uploader:'업로더',viewer:'조회자'},FN_ERR={400:'입력값을 확인해 주세요',403:'권한이 없습니다',404:'사용자를 찾을 수 없습니다',409:'이미 등록된 이메일입니다'},FN_ERR_DEF='요청을 처리하지 못했습니다. 다시 시도해 주세요';
-const adminUsers=(action,body)=>api('/functions/v1/admin-users',{method:'POST',body:{action,...body}}),usersErr=e=>FN_ERR[e&&e.status]||FN_ERR_DEF;
+const adminUsers=(action,body)=>api('/functions/v1/admin-users',{method:'POST',body:{action,...body}}),usersErr=e=>e&&e.body&&(e.body.error==='restore_failed'||e.body.error==='rollback_failed')?'신청 처리 중 오류가 발생했습니다. 신청 목록과 사용자 목록을 확인해 주세요.':FN_ERR[e&&e.status]||FN_ERR_DEF;
 const REQ_ROLES=['uploader','viewer'];
 let usersList=[],usersOpen=false,usersBusy=false,usersSeq=0,reqList=[],reqRole={};
 function setUsersLabel(){let b=document.querySelector('.nav[data-tab="users"]');if(b)b.textContent=reqList.length?`사용자 관리 (${reqList.length})`:'사용자 관리'}
@@ -550,7 +550,7 @@ function reqAction(b){
  let ap=b.dataset.act==='req-approve',em=r.email,role=tr.querySelector('select').value;
  if(!ap&&!confirm(`${em} 가입 신청을 거절하시겠습니까? 신청 정보가 삭제됩니다.`))return;
  usersRun(async()=>{
-  let res;try{res=await adminUsers(ap?'approve_request':'reject_request',ap?{request_id:r.id,role}:{request_id:r.id})}catch(err){if(err&&(err.status===404||err.status===409))await refreshUsers().catch(()=>{});throw err}
+  let res;try{res=await adminUsers(ap?'approve_request':'reject_request',ap?{request_id:r.id,role}:{request_id:r.id})}catch(err){if(err&&(err.status===404||err.status===409||err.status===500))await refreshUsers().catch(()=>{});throw err}
   if(ap){showPw(em,res&&res.temp_password,true);res=null}
   usersMsg(ap?`${em} 계정을 만들었습니다`:`${em} 가입 신청을 거절했습니다`,true);await refreshUsers()})}
 function usersClick(e){
